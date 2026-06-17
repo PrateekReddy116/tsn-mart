@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Product } from "@/lib/types";
+import { Package, CheckCircle, XCircle, Trash2, Plus } from "lucide-react";
 
 interface Props {
   initialProducts: Product[];
@@ -17,15 +18,7 @@ const CATEGORIES = [
 ];
 
 const inputCls =
-  "px-3 py-2.5 rounded-lg text-white placeholder-white/25 text-sm outline-none transition-colors";
-const inputStyle = {
-  background: "rgba(255,255,255,.05)",
-  border: "1px solid rgba(255,255,255,.08)",
-};
-const selectStyle = {
-  background: "#111318",
-  border: "1px solid rgba(255,255,255,.08)",
-};
+  "px-3 py-2.5 rounded-lg bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text3)] text-sm outline-none focus:border-[var(--brand)] transition-colors";
 
 export default function AdminProductsClient({ initialProducts }: Props) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -126,42 +119,61 @@ export default function AdminProductsClient({ initialProducts }: Props) {
     }
   }
 
-  const cardStyle = {
-    background: "rgba(255,255,255,.04)",
-    border: "1px solid rgba(255,255,255,.07)",
-  };
-
   return (
     <div className="space-y-6">
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { icon: "📦", num: products.length, label: "Total Products" },
-          { icon: "✅", num: inStock,          label: "In Stock" },
-          { icon: "❌", num: outOfStock,       label: "Out of Stock" },
-        ].map((s) => (
-          <div key={s.label} className="rounded-2xl p-5 flex items-center gap-4" style={cardStyle}>
-            <span className="text-3xl">{s.icon}</span>
-            <div>
-              <div className="text-2xl font-bold text-white">{s.num}</div>
-              <div className="text-sm" style={{ color: "rgba(255,255,255,.4)" }}>{s.label}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="rounded-3xl p-6 bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg shadow-blue-500/20 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md mb-4">
+              <Package size={24} className="text-white" />
             </div>
+            <div className="text-4xl font-black mb-1">{products.length}</div>
+            <div className="text-blue-100 font-medium">Total Products</div>
           </div>
-        ))}
+          <div className="absolute -right-8 -bottom-8 opacity-20 pointer-events-none">
+            <Package size={140} strokeWidth={1} />
+          </div>
+        </div>
+
+        <div className="rounded-3xl p-6 bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md mb-4">
+              <CheckCircle size={24} className="text-white" />
+            </div>
+            <div className="text-4xl font-black mb-1">{inStock}</div>
+            <div className="text-emerald-100 font-medium">In Stock</div>
+          </div>
+          <div className="absolute -right-8 -bottom-8 opacity-20 pointer-events-none">
+            <CheckCircle size={140} strokeWidth={1} />
+          </div>
+        </div>
+
+        <div className="rounded-3xl p-6 bg-gradient-to-br from-rose-500 to-orange-600 shadow-lg shadow-rose-500/20 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md mb-4">
+              <XCircle size={24} className="text-white" />
+            </div>
+            <div className="text-4xl font-black mb-1">{outOfStock}</div>
+            <div className="text-rose-100 font-medium">Out of Stock</div>
+          </div>
+          <div className="absolute -right-8 -bottom-8 opacity-20 pointer-events-none">
+            <XCircle size={140} strokeWidth={1} />
+          </div>
+        </div>
       </div>
 
       {/* ── Add Product ── */}
-      <div className="rounded-2xl p-6" style={cardStyle}>
-        <h2 className="text-base font-semibold text-white mb-4">Add New Product</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="rounded-2xl p-6 bg-[var(--surface)] border border-[var(--border)] shadow-sm">
+        <h2 className="text-base font-semibold text-[var(--text)] mb-4">Add New Product</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <input
             type="text"
             value={addForm.name}
             onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Product name *"
-            className={`${inputCls} col-span-2 sm:col-span-1`}
-            style={inputStyle}
+            className={`${inputCls} sm:col-span-2 lg:col-span-1`}
           />
           <input
             type="number"
@@ -170,7 +182,6 @@ export default function AdminProductsClient({ initialProducts }: Props) {
             placeholder="Price (₹) *"
             min="0"
             className={inputCls}
-            style={inputStyle}
           />
           <input
             type="number"
@@ -179,21 +190,18 @@ export default function AdminProductsClient({ initialProducts }: Props) {
             placeholder="Stock qty *"
             min="0"
             className={inputCls}
-            style={inputStyle}
           />
           <input
             type="text"
             value={addForm.image}
             onChange={(e) => setAddForm((f) => ({ ...f, image: e.target.value }))}
-            placeholder="Image URL (optional)"
-            className={`${inputCls} col-span-2`}
-            style={inputStyle}
+            placeholder="Image URL"
+            className={`${inputCls} sm:col-span-2 lg:col-span-1`}
           />
           <select
             value={addForm.category}
             onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value }))}
-            className="px-3 py-2.5 rounded-lg text-white text-sm outline-none"
-            style={selectStyle}
+            className={`${inputCls} cursor-pointer`}
           >
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -202,8 +210,7 @@ export default function AdminProductsClient({ initialProducts }: Props) {
           <button
             onClick={addProduct}
             disabled={adding}
-            className="col-span-2 sm:col-span-1 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 active:scale-[.98]"
-            style={{ background: "#1a3c34" }}
+            className="w-full text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 active:scale-[.98] bg-[var(--brand)] hover:bg-[var(--brand2)]"
           >
             {adding ? "Adding…" : "+ Add Product"}
           </button>
@@ -211,11 +218,11 @@ export default function AdminProductsClient({ initialProducts }: Props) {
       </div>
 
       {/* ── Product List ── */}
-      <div className="rounded-2xl p-6" style={cardStyle}>
-        <h2 className="text-base font-semibold text-white mb-4">Manage Products</h2>
+      <div className="rounded-2xl p-6 bg-[var(--surface)] border border-[var(--border)] shadow-sm">
+        <h2 className="text-base font-semibold text-[var(--text)] mb-4">Manage Products</h2>
         <div className="space-y-3">
           {products.length === 0 && (
-            <p className="text-sm text-center py-8" style={{ color: "rgba(255,255,255,.25)" }}>
+            <p className="text-sm text-center py-8 text-[var(--text3)]">
               No products yet. Add one above.
             </p>
           )}
@@ -230,42 +237,38 @@ export default function AdminProductsClient({ initialProducts }: Props) {
             return (
               <div
                 key={p.id}
-                className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-3 items-center rounded-xl p-4"
-                style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.05)" }}
+                className="flex flex-col xl:flex-row gap-4 items-start xl:items-center rounded-xl p-4 bg-[var(--surface2)] border border-[var(--border)]"
               >
                 {/* Thumb + status */}
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-3 shrink-0 w-full xl:w-auto">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={image}
                     alt={name}
-                    className="w-14 h-14 object-contain rounded-xl p-1"
-                    style={{ background: "rgba(255,255,255,.06)" }}
+                    className="w-14 h-14 object-cover rounded-xl p-1 bg-white"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
                         "https://cdn-icons-png.flaticon.com/512/2674/2674486.png";
                     }}
                   />
                   <span
-                    className="text-xs font-semibold px-2 py-1 rounded-full"
-                    style={
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                       inStock
-                        ? { background: "rgba(34,197,94,.15)", color: "#4ade80" }
-                        : { background: "rgba(239,68,68,.12)",  color: "rgba(239,68,68,.8)" }
-                    }
+                        ? "bg-green-500/10 text-green-500"
+                        : "bg-red-500/10 text-red-500"
+                    }`}
                   >
                     {inStock ? "In Stock" : "Out of Stock"}
                   </span>
                 </div>
 
                 {/* Editable fields */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setEdit(p.id, { name: e.target.value })}
-                    className={`${inputCls} col-span-2 sm:col-span-1`}
-                    style={inputStyle}
+                    className={inputCls}
                     placeholder="Name"
                   />
                   <input
@@ -273,7 +276,6 @@ export default function AdminProductsClient({ initialProducts }: Props) {
                     value={price}
                     onChange={(e) => setEdit(p.id, { price: Number(e.target.value) })}
                     className={inputCls}
-                    style={inputStyle}
                     min="0"
                     placeholder="Price (₹)"
                     title="Price (₹)"
@@ -283,16 +285,21 @@ export default function AdminProductsClient({ initialProducts }: Props) {
                     value={qty}
                     onChange={(e) => setEdit(p.id, { qty: Number(e.target.value) })}
                     className={inputCls}
-                    style={inputStyle}
                     min="0"
                     placeholder="Qty"
                     title="Stock qty"
                   />
+                  <input
+                    type="text"
+                    value={image}
+                    onChange={(e) => setEdit(p.id, { image: e.target.value })}
+                    className={inputCls}
+                    placeholder="Image URL"
+                  />
                   <select
                     value={category}
                     onChange={(e) => setEdit(p.id, { category: e.target.value })}
-                    className="px-2 py-2 rounded-lg text-white text-xs outline-none"
-                    style={selectStyle}
+                    className={`${inputCls} cursor-pointer`}
                   >
                     {CATEGORIES.map((c) => (
                       <option key={c.value} value={c.value}>{c.label}</option>
@@ -301,23 +308,22 @@ export default function AdminProductsClient({ initialProducts }: Props) {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 shrink-0">
+                <div className="flex w-full xl:w-auto gap-2 shrink-0">
                   <button
                     onClick={() => saveProduct(p)}
                     disabled={saving === p.id}
-                    className="text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 active:scale-[.98]"
-                    style={{ background: "#1a3c34" }}
+                    className="flex-1 xl:flex-none text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50 active:scale-[.98] bg-[var(--brand)] hover:bg-[var(--brand2)]"
                   >
                     {saving === p.id ? "Saving…" : "Save"}
                   </button>
                   <button
                     onClick={() => deleteProduct(p.id)}
                     disabled={deleting === p.id}
-                    className="text-sm px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
-                    style={{ background: "rgba(239,68,68,.12)", color: "rgba(239,68,68,.8)" }}
+                    className="flex-1 xl:flex-none flex items-center justify-center gap-1.5 text-sm px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50 bg-red-500/10 text-red-500 hover:bg-red-500/20"
                     aria-label={`Delete ${p.name}`}
                   >
-                    🗑️
+                    <Trash2 size={16} />
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>

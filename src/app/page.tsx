@@ -9,6 +9,17 @@ export default async function Home() {
     .select("*")
     .order("id");
 
+  const { data: { user } } = await supabase.auth.getUser();
+  let profile = null;
+  let savedItems: number[] = [];
+  if (user) {
+    const { data: p } = await supabase.from("customer_profiles").select("*").eq("id", user.id).single();
+    profile = p || { name: user.user_metadata?.full_name || "" };
+    
+    const { data: s } = await supabase.from("saved_items").select("product_id").eq("user_id", user.id);
+    if (s) savedItems = s.map((item) => item.product_id);
+  }
+
   // If Supabase isn't configured yet, show setup instructions
   if (error) {
     return (
@@ -16,7 +27,9 @@ export default async function Home() {
         <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center"
           style={{ boxShadow: "0 4px 24px rgba(0,0,0,.08)" }}
         >
-          <div className="text-5xl mb-4">🛍️</div>
+          <div className="flex justify-center mb-4 text-[#1a3c34]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          </div>
           <h1 className="text-xl font-bold text-slate-800 mb-2">TSN Mart — Setup Required</h1>
           <p className="text-slate-500 text-sm mb-5 leading-relaxed">
             The database isn&apos;t connected yet. Follow these steps to get started:
@@ -49,5 +62,5 @@ export default async function Home() {
     );
   }
 
-  return <StorefrontClient initialProducts={(data ?? []) as Product[]} />;
+  return <StorefrontClient initialProducts={(data ?? []) as Product[]} user={user} profile={profile} initialSavedItems={savedItems} />;
 }

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useCartStore } from "@/lib/store";
+import { MapPin, Map } from "lucide-react";
+import LocationPickerModal from "./LocationPickerModal";
 
 interface Props {
   method: "phonepe" | "whatsapp";
@@ -22,6 +24,41 @@ export default function CustomerModal({ method, onClose, onComplete }: Props) {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+
+  async function detectLocation() {
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setDetectingLocation(true);
+    setError("");
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await res.json();
+          if (data && data.display_name) {
+            setAddress(data.display_name);
+          } else {
+            setError("Could not determine address from location.");
+          }
+        } catch (err) {
+          setError("Failed to fetch address.");
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      () => {
+        setError("Location access denied.");
+        setDetectingLocation(false);
+      }
+    );
+  }
 
   async function handleConfirm() {
     if (!name.trim() || !phone.trim() || !address.trim()) {
@@ -118,13 +155,33 @@ export default function CustomerModal({ method, onClose, onComplete }: Props) {
             placeholder="Phone Number *"
             className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#1a3c34] focus:bg-white transition-colors"
           />
-          <textarea
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Delivery Address *"
-            rows={3}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#1a3c34] focus:bg-white transition-colors resize-none"
-          />
+          <div className="flex flex-col gap-1.5">
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Delivery Address *"
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#1a3c34] focus:bg-white transition-colors resize-none"
+            />
+            <div className="flex items-center gap-4 mt-1">
+              <button
+                type="button"
+                onClick={detectLocation}
+                disabled={detectingLocation}
+                className="text-xs font-semibold text-[#1a3c34] hover:text-[#2a5c4c] transition-colors disabled:opacity-50 flex items-center gap-1"
+              >
+                {detectingLocation ? <><MapPin size={14} className="animate-pulse" /> Detecting…</> : <><MapPin size={14} /> Detect Location</>}
+              </button>
+              <span className="text-slate-300 text-xs">|</span>
+              <button
+                type="button"
+                onClick={() => setShowMapModal(true)}
+                className="text-xs font-semibold text-[#1a3c34] hover:text-[#2a5c4c] transition-colors flex items-center gap-1"
+              >
+                <Map size={14} /> Set on Map
+              </button>
+            </div>
+          </div>
 
           {error && (
             <p className="text-red-500 text-sm font-medium">{error}</p>
@@ -139,6 +196,16 @@ export default function CustomerModal({ method, onClose, onComplete }: Props) {
           </button>
         </div>
       </div>
+
+      {showMapModal && (
+        <LocationPickerModal 
+          onClose={() => setShowMapModal(false)}
+          onConfirm={(addr) => {
+            setAddress(addr);
+            setShowMapModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useCartStore } from "@/lib/store";
+import { MapPin, Map } from "lucide-react";
+import LocationPickerModal from "./LocationPickerModal";
 
 interface Props {
   onClose: () => void;
@@ -12,16 +14,53 @@ interface Props {
     total: number;
     paymentId: string;
   }) => void;
+  user?: any;
+  profile?: any;
 }
 
-export default function CheckoutModal({ onClose, onComplete }: Props) {
+export default function CheckoutModal({ onClose, onComplete, user, profile }: Props) {
   const { cart, cartSubtotal, cartDiscount, cartTotal, clearCart } = useCartStore();
 
-  const [name,    setName]    = useState("");
-  const [phone,   setPhone]   = useState("");
-  const [address, setAddress] = useState("");
+  const [name,    setName]    = useState(profile?.name || user?.user_metadata?.full_name || "");
+  const [phone,   setPhone]   = useState(profile?.phone || "");
+  const [address, setAddress] = useState(profile?.address || "");
   const [error,   setError]   = useState("");
   const [loading, setLoading] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+
+  async function detectLocation() {
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setDetectingLocation(true);
+    setError("");
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await res.json();
+          if (data && data.display_name) {
+            setAddress(data.display_name);
+          } else {
+            setError("Could not determine address from location.");
+          }
+        } catch (err) {
+          setError("Failed to fetch address.");
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      () => {
+        setError("Location access denied.");
+        setDetectingLocation(false);
+      }
+    );
+  }
 
   const subtotal = cartSubtotal();
   const discount = cartDiscount();
@@ -127,6 +166,7 @@ export default function CheckoutModal({ onClose, onComplete }: Props) {
         payment_method: "razorpay",
         payment_id:     paymentId,
         status:         "confirmed",
+        user_id:        user?.id || null,
       }),
     });
 
@@ -237,17 +277,37 @@ export default function CheckoutModal({ onClose, onComplete }: Props) {
                   onFocus={(e) => (e.currentTarget.style.borderColor = "#1a3c34")}
                   onBlur={(e)  => (e.currentTarget.style.borderColor = "#e2e8f0")}
                 />
-                <textarea
-                  value={address}
-                  onChange={(e) => { setAddress(e.target.value); setError(""); }}
-                  placeholder="House / Flat No., Street, Landmark, City *"
-                  rows={3}
-                  autoComplete="street-address"
-                  className={inputCls + " resize-none"}
-                  style={inputStyle}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "#1a3c34")}
-                  onBlur={(e)  => (e.currentTarget.style.borderColor = "#e2e8f0")}
-                />
+                <div className="flex flex-col gap-1.5">
+                  <textarea
+                    value={address}
+                    onChange={(e) => { setAddress(e.target.value); setError(""); }}
+                    placeholder="House / Flat No., Street, Landmark, City *"
+                    rows={3}
+                    autoComplete="street-address"
+                    className={inputCls + " resize-none"}
+                    style={inputStyle}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "#1a3c34")}
+                    onBlur={(e)  => (e.currentTarget.style.borderColor = "#e2e8f0")}
+                  />
+                  <div className="flex items-center gap-4 mt-1">
+                    <button
+                      type="button"
+                      onClick={detectLocation}
+                      disabled={detectingLocation}
+                      className="text-xs font-semibold text-[#1a3c34] hover:text-[#2a5c4c] transition-colors disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {detectingLocation ? <><MapPin size={14} className="animate-pulse" /> Detecting…</> : <><MapPin size={14} /> Detect Location</>}
+                    </button>
+                    <span className="text-slate-300 text-xs">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowMapModal(true)}
+                      className="text-xs font-semibold text-[#1a3c34] hover:text-[#2a5c4c] transition-colors flex items-center gap-1"
+                    >
+                      <Map size={14} /> Set on Map
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -295,6 +355,16 @@ export default function CheckoutModal({ onClose, onComplete }: Props) {
           </div>
         </div>
       </div>
+
+      {showMapModal && (
+        <LocationPickerModal 
+          onClose={() => setShowMapModal(false)}
+          onConfirm={(addr) => {
+            setAddress(addr);
+            setShowMapModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

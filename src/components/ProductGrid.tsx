@@ -3,17 +3,51 @@
 import { Product } from "@/lib/types";
 import { useCartStore } from "@/lib/store";
 import { CATEGORIES } from "./CategoryChips";
+import { Heart } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 
 interface Props {
   products: Product[];
+  user?: any;
+  savedItems?: number[];
+  setSavedItems?: (items: number[]) => void;
 }
 
 function getDeliveryLabel(category: string) {
   return CATEGORIES.find((c) => c.key === category)?.delivery ?? "Same day";
 }
 
-export default function ProductGrid({ products }: Props) {
+export default function ProductGrid({ products, user, savedItems = [], setSavedItems }: Props) {
   const { cart, addToCart, changeQty } = useCartStore();
+  const router = useRouter();
+  const supabase = createClient();
+  const [localSaved, setLocalSaved] = useState<number[]>(savedItems);
+
+  useEffect(() => {
+    setLocalSaved(savedItems);
+  }, [savedItems]);
+
+  async function toggleSave(productId: number) {
+    if (!user) {
+      router.push("/signin");
+      return;
+    }
+
+    const isSaved = localSaved.includes(productId);
+    if (isSaved) {
+      // Remove
+      setLocalSaved(localSaved.filter(id => id !== productId));
+      if (setSavedItems) setSavedItems(localSaved.filter(id => id !== productId));
+      await supabase.from("saved_items").delete().match({ user_id: user.id, product_id: productId });
+    } else {
+      // Add
+      setLocalSaved([...localSaved, productId]);
+      if (setSavedItems) setSavedItems([...localSaved, productId]);
+      await supabase.from("saved_items").insert([{ user_id: user.id, product_id: productId }]);
+    }
+  }
 
   if (products.length === 0) {
     return (
@@ -52,6 +86,16 @@ export default function ProductGrid({ products }: Props) {
               className="relative flex items-center justify-center overflow-hidden"
               style={{ height: "8.5rem", background: "var(--surface2)" }}
             >
+              <button 
+                onClick={() => toggleSave(p.id)}
+                className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-white/80 backdrop-blur-sm text-[var(--text2)] hover:text-red-500 hover:bg-white transition-colors shadow-sm"
+              >
+                <Heart 
+                  size={16} 
+                  fill={localSaved.includes(p.id) ? "currentColor" : "none"} 
+                  className={localSaved.includes(p.id) ? "text-red-500" : ""} 
+                />
+              </button>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={p.image}
@@ -64,9 +108,7 @@ export default function ProductGrid({ products }: Props) {
               />
               {/* Out of stock */}
               {!isAvail && inCart === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center"
-                  style={{ background: "rgba(var(--bg-rgb, 248,250,252),.85)" }}
-                >
+                <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg)]/80 backdrop-blur-[1px]">
                   <span
                     className="text-[11px] font-bold px-2.5 py-1 rounded-full"
                     style={{
@@ -82,8 +124,7 @@ export default function ProductGrid({ products }: Props) {
               {/* Low stock */}
               {isAvail && remaining <= 3 && (
                 <span
-                  className="absolute top-1.5 left-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: "#fff7ed", color: "#c2410c", border: "1px solid #fed7aa" }}
+                  className="absolute top-1.5 left-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800"
                 >
                   {remaining} left!
                 </span>

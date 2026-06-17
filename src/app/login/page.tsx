@@ -47,7 +47,8 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🛍️</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="TSN Mart" className="w-16 h-16 object-contain mx-auto mb-3" />
           <div className="text-white font-bold text-xl mb-1">TSN Mart</div>
           <p className="text-sm" style={{ color: "rgba(255,255,255,.35)" }}>
             Admin access only

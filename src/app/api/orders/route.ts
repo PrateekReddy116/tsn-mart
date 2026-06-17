@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
       payment_method,
       payment_id,
       status,
+      user_id,
     } = body;
 
     // Validate required fields
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("orders")
       .insert([
         {
@@ -41,10 +42,9 @@ export async function POST(request: NextRequest) {
           payment_method,
           payment_id: payment_id ?? null,
           status: status || "pending",
+          user_id: user_id ?? null,
         },
-      ])
-      .select()
-      .single();
+      ]);
 
     if (error) {
       // If table doesn't exist yet (Supabase not configured), return success anyway
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, warning: "Order not persisted — configure Supabase" });
     }
 
-    return NextResponse.json({ ok: true, order: data });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Order API error:", err);
     return NextResponse.json(

@@ -21,16 +21,16 @@
 
 /* ── Dark mode ── */
 html.dark {
-  --bg:          #0d1117;
-  --surface:     #161b22;
-  --surface2:    #21262d;
-  --border:      #30363d;
-  --border2:     #21262d;
-  --text:        #e6edf3;
-  --text2:       #8b949e;
-  --text3:       #6e7681;
-  --brand:       #238636;
-  --brand2:      #2ea043;
+  --bg:          #0f172a;
+  --surface:     #1e293b;
+  --surface2:    #334155;
+  --border:      #334155;
+  --border2:     #475569;
+  --text:        #f8fafc;
+  --text2:       #cbd5e1;
+  --text3:       #94a3b8;
+  --brand:       #10b981;
+  --brand2:      #34d399;
   --brand-text:  #ffffff;
 }
 

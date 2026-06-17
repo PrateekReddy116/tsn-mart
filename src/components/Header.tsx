@@ -1,95 +1,58 @@
 "use client";
 
-import Image from "next/image";
-import { useCartStore } from "@/lib/store";
+import { Search, Menu, ShoppingCart, User } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+
+import Link from "next/link";
 
 interface Props {
   search: string;
   onSearch: (v: string) => void;
   onCartToggle: () => void;
+  user?: any;
+  profile?: any;
 }
 
-export default function Header({ search, onSearch, onCartToggle }: Props) {
-  const cartCount = useCartStore((s) => s.cartCount());
-  const cartTotal = useCartStore((s) => s.cartTotal());
-
+export default function Header({ search, onSearch, onCartToggle, user, profile }: Props) {
   return (
-    <header
-      className="sticky top-0 z-40 h-14"
-      style={{
-        background: "var(--surface)",
-        borderBottom: "1px solid var(--border)",
-        boxShadow: "0 1px 8px rgba(0,0,0,.06)",
-      }}
-    >
-      <div className="max-w-7xl mx-auto h-full px-4 flex items-center gap-3">
-        {/* Logo — swap public/logo.png with your custom logo */}
-        <div className="flex items-center gap-2 shrink-0 select-none">
-          <div className="w-8 h-8 relative rounded-xl overflow-hidden flex items-center justify-center"
-            style={{ background: "var(--brand)" }}
-          >
-            {/* When you add public/logo.png, uncomment this Image and remove the emoji span */}
-            {/* <Image src="/logo.png" alt="TSN Mart" fill className="object-contain p-1" priority /> */}
-            <span className="text-lg">🛍️</span>
+    <header className="sticky top-0 z-40 bg-[var(--surface)] border-b border-[var(--border)] px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-4">
+      
+      {/* Mobile Menu Button (Hamburger) - Only visible on small screens */}
+      <button className="md:hidden text-[var(--text2)] p-2 -ml-2 rounded-lg hover:bg-[var(--surface2)]">
+        <Menu size={24} />
+      </button>
+
+      {/* Search Bar */}
+      <div className="flex-1 max-w-md relative">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text3)] pointer-events-none">
+          <Search size={18} />
+        </div>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+          placeholder="Search"
+          className="w-full pl-11 pr-4 py-2.5 bg-[var(--surface2)] text-[var(--text)] placeholder-[var(--text3)] rounded-full text-sm outline-none focus:ring-2 focus:ring-[var(--brand)] transition-shadow"
+        />
+      </div>
+
+      {/* Right side actions */}
+      <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+        <ThemeToggle className="hidden sm:flex" />
+        <button onClick={onCartToggle} className="text-[var(--text2)] hover:text-[var(--text)] transition-colors">
+          <ShoppingCart size={20} />
+        </button>
+
+        {/* Profile */}
+        <Link href={user ? "/profile" : "/signin"} className="hidden sm:flex items-center gap-3 pl-2 sm:pl-4 border-l border-[var(--border)] hover:opacity-80 transition-opacity cursor-pointer">
+          <div className="w-9 h-9 rounded-full bg-[var(--brand)] flex items-center justify-center text-white font-bold uppercase shadow-sm">
+            {profile?.name ? profile.name.charAt(0) : user?.email?.charAt(0) || "G"}
           </div>
-          <span className="font-black text-base tracking-tight" style={{ color: "var(--text)" }}>
-            TSN<span style={{ color: "var(--brand)" }}>Mart</span>
-          </span>
-        </div>
-
-        {/* Search */}
-        <div className="flex-1 min-w-0">
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-              style={{ color: "var(--text3)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-            >
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => onSearch(e.target.value)}
-              placeholder="Search products…"
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl outline-none transition-colors"
-              style={{
-                background: "var(--surface2)",
-                border: "1.5px solid var(--border)",
-                color: "var(--text)",
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand)")}
-              onBlur={(e)  => (e.currentTarget.style.borderColor = "var(--border)")}
-            />
+          <div className="hidden lg:block text-sm">
+            <p className="font-bold text-[var(--text)] leading-none">{profile?.name || "Guest"}</p>
+            <p className="text-[11px] text-[var(--text3)] mt-0.5">{user?.email || "Sign in to sync"}</p>
           </div>
-        </div>
-
-        {/* Right actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          <ThemeToggle />
-
-          <button
-            onClick={onCartToggle}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold transition-all active:scale-95 select-none"
-            style={{ background: "var(--brand)" }}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-              <line x1="3" y1="6" x2="21" y2="6"/>
-              <path d="M16 10a4 4 0 0 1-8 0"/>
-            </svg>
-            <span className="hidden sm:inline">
-              {cartCount > 0 ? `₹${cartTotal}` : "Cart"}
-            </span>
-            {cartCount > 0 && (
-              <span
-                className="text-[11px] font-black px-1.5 py-0.5 rounded-lg"
-                style={{ background: "rgba(255,255,255,.25)" }}
-              >
-                {cartCount}
-              </span>
-            )}
-          </button>
-        </div>
+        </Link>
       </div>
     </header>
   );

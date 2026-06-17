@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS products (
 -- Orders table
 CREATE TABLE IF NOT EXISTS orders (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id             UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   customer_name       TEXT NOT NULL,
   customer_phone      TEXT NOT NULL,
   customer_address    TEXT NOT NULL,
@@ -29,6 +30,24 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_id          TEXT,
   status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'delivered')),
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Customer Profiles table
+CREATE TABLE IF NOT EXISTS customer_profiles (
+  id          UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  phone       TEXT,
+  address     TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Saved Items table
+CREATE TABLE IF NOT EXISTS saved_items (
+  user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  product_id  INTEGER REFERENCES products(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, product_id)
 );
 
 -- ============================================================
@@ -72,6 +91,49 @@ CREATE POLICY "orders_admin_read"
   ON orders FOR SELECT
   TO authenticated
   USING (true);
+
+-- Orders: users can read their own orders
+CREATE POLICY "orders_user_read"
+  ON orders FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- Customer Profiles RLS
+ALTER TABLE customer_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "customer_profiles_read_own"
+  ON customer_profiles FOR SELECT
+  TO authenticated
+  USING (auth.uid() = id);
+
+CREATE POLICY "customer_profiles_insert_own"
+  ON customer_profiles FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "customer_profiles_update_own"
+  ON customer_profiles FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+-- Saved Items RLS
+ALTER TABLE saved_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "saved_items_read_own"
+  ON saved_items FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "saved_items_insert_own"
+  ON saved_items FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "saved_items_delete_own"
+  ON saved_items FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
 
 -- ============================================================
 -- Seed default products
