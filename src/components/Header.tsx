@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Image from "next/image";
 import { useCartStore } from "@/lib/store";
+import ThemeToggle from "./ThemeToggle";
 
 interface Props {
   search: string;
@@ -11,47 +12,79 @@ interface Props {
 
 export default function Header({ search, onSearch, onCartToggle }: Props) {
   const cartCount = useCartStore((s) => s.cartCount());
+  const cartTotal = useCartStore((s) => s.cartTotal());
 
   return (
     <header
-      className="sticky top-0 z-40 h-16 bg-[#1a3c34]"
-      style={{ boxShadow: "0 2px 12px rgba(0,0,0,.25)" }}
+      className="sticky top-0 z-40 h-14"
+      style={{
+        background: "var(--surface)",
+        borderBottom: "1px solid var(--border)",
+        boxShadow: "0 1px 8px rgba(0,0,0,.06)",
+      }}
     >
-      <div className="max-w-7xl mx-auto h-full px-4 flex items-center gap-4">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0 select-none">
-          <span className="text-2xl leading-none">🛍️</span>
-          <span className="text-white font-bold text-lg leading-none">
-            TSN&nbsp;<span className="text-green-400">Mart</span>
+      <div className="max-w-7xl mx-auto h-full px-4 flex items-center gap-3">
+        {/* Logo — swap public/logo.png with your custom logo */}
+        <div className="flex items-center gap-2 shrink-0 select-none">
+          <div className="w-8 h-8 relative rounded-xl overflow-hidden flex items-center justify-center"
+            style={{ background: "var(--brand)" }}
+          >
+            {/* When you add public/logo.png, uncomment this Image and remove the emoji span */}
+            {/* <Image src="/logo.png" alt="TSN Mart" fill className="object-contain p-1" priority /> */}
+            <span className="text-lg">🛍️</span>
+          </div>
+          <span className="font-black text-base tracking-tight" style={{ color: "var(--text)" }}>
+            TSN<span style={{ color: "var(--brand)" }}>Mart</span>
           </span>
-        </Link>
+        </div>
 
         {/* Search */}
-        <div className="flex-1 max-w-xl">
+        <div className="flex-1 min-w-0">
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm select-none">
-              🔍
-            </span>
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+              style={{ color: "var(--text3)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
             <input
               type="text"
               value={search}
               onChange={(e) => onSearch(e.target.value)}
               placeholder="Search products…"
-              className="w-full bg-white/10 border border-white/15 rounded-full pl-9 pr-4 py-2 text-sm text-white placeholder-white/40 outline-none focus:bg-white/20 focus:border-green-400 transition-colors"
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl outline-none transition-colors"
+              style={{
+                background: "var(--surface2)",
+                border: "1.5px solid var(--border)",
+                color: "var(--text)",
+              }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand)")}
+              onBlur={(e)  => (e.currentTarget.style.borderColor = "var(--border)")}
             />
           </div>
         </div>
 
-        {/* Cart only — admin link removed from customer-facing header */}
-        <div className="flex items-center shrink-0">
+        {/* Right actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <ThemeToggle />
+
           <button
             onClick={onCartToggle}
-            className="relative flex items-center gap-1.5 bg-green-500 hover:bg-green-400 active:scale-95 text-white text-sm font-semibold px-4 py-2 rounded-full transition-all select-none"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold transition-all active:scale-95 select-none"
+            style={{ background: "var(--brand)" }}
           >
-            <span className="text-base leading-none">🛒</span>
-            <span>Cart</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <path d="M16 10a4 4 0 0 1-8 0"/>
+            </svg>
+            <span className="hidden sm:inline">
+              {cartCount > 0 ? `₹${cartTotal}` : "Cart"}
+            </span>
             {cartCount > 0 && (
-              <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center leading-none">
+              <span
+                className="text-[11px] font-black px-1.5 py-0.5 rounded-lg"
+                style={{ background: "rgba(255,255,255,.25)" }}
+              >
                 {cartCount}
               </span>
             )}

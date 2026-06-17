@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import ThemeSync from "@/components/ThemeSync";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -9,22 +10,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TSN Mart — Fresh Groceries Delivered",
-  description:
-    "Order fresh groceries, daily essentials and more from TSN Mart. Fast delivery to your doorstep.",
-  icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛍️</text></svg>",
-  },
+  title: "TSN Mart",
+  description: "Fresh groceries and daily essentials delivered to your doorstep.",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="bg-slate-50 text-slate-900 antialiased">{children}</body>
+      <body className="antialiased">
+        <ThemeSync />
+        {children}
+      </body>
     </html>
   );
 }

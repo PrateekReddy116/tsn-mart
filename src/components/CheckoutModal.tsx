@@ -14,269 +14,283 @@ interface Props {
   }) => void;
 }
 
-type Step = "details" | "paying";
-
 export default function CheckoutModal({ onClose, onComplete }: Props) {
   const { cart, cartSubtotal, cartDiscount, cartTotal, clearCart } = useCartStore();
 
-  const [step, setStep] = useState<Step>("details");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name,    setName]    = useState("");
+  const [phone,   setPhone]   = useState("");
   const [address, setAddress] = useState("");
-  const [error, setError] = useState("");
+  const [error,   setError]   = useState("");
   const [loading, setLoading] = useState(false);
 
   const subtotal = cartSubtotal();
   const discount = cartDiscount();
-  const total = cartTotal();
+  const total    = cartTotal();
 
-  function validateDetails() {
-    if (!name.trim()) { setError("Please enter your name."); return false; }
-    if (!phone.trim() || !/^\d{10}$/.test(phone.trim())) {
-      setError("Please enter a valid 10-digit phone number.");
-      return false;
+  function validate() {
+    if (!name.trim())    { setError("Please enter your name."); return false; }
+    if (!/^\d{10}$/.test(phone.trim())) {
+      setError("Enter a valid 10-digit phone number."); return false;
     }
     if (!address.trim()) { setError("Please enter your delivery address."); return false; }
     return true;
   }
 
-  async function handleProceedToPayment() {
+  async function handlePay() {
     setError("");
-    if (!validateDetails()) return;
-    setStep("paying");
+    if (!validate()) return;
     setLoading(true);
 
     try {
-      // 1. Create Razorpay order on server
-      const res = await fetch("/api/razorpay/create-order", {
-        method: "POST",
+      // 1 — Create order on server, which also returns the live key
+      const res  = await fetch("/api/razorpay/create-order", {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: total }),
+        body:    JSON.stringify({ amount: total }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not create payment order");
 
-      if (!res.ok) throw new Error(data.error || "Failed to create payment order");
-
-      // 2. Load Razorpay SDK and open checkout
+      // 2 — Load Razorpay SDK
       await loadRazorpayScript();
 
+      // 3 — Open checkout using keyId returned from server (never a placeholder)
       const options: RazorpayOptions = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-        amount: data.amount,
-        currency: "INR",
-        name: "TSN Mart",
+        key:         data.keyId,          // ← server-sourced, always correct
+        amount:      data.amount,
+        currency:    "INR",
+        name:        "TSN Mart",
         description: `Order for ${name.trim()}`,
-        order_id: data.orderId,
-        prefill: {
-          name: name.trim(),
-          contact: phone.trim(),
-        },
-        theme: { color: "#1a3c34" },
+        order_id:    data.orderId,
+        prefill:     { name: name.trim(), contact: phone.trim() },
+        theme:       { color: "#1a3c34" },
         modal: {
           ondismiss: () => {
             setLoading(false);
-            setStep("details");
           },
         },
         handler: async (response: RazorpayResponse) => {
-          // 3. Payment succeeded — save order then show success
-          await saveOrder(response.razorpay_payment_id);
+          // Verify signature on server before finalising order
+          const verifyRes = await fetch("/api/razorpay/verify-payment", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature:  response.razorpay_signature,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+
+          if (!verifyRes.ok || !verifyData.verified) {
+            setError("Payment could not be verified. Contact support with your payment ID.");
+            setLoading(false);
+            return;
+          }
+
+          await finalise(response.razorpay_payment_id);
         },
       };
 
       const rzp = new (window as unknown as WindowWithRazorpay).Razorpay(options);
+      rzp.on("payment.failed", () => {
+        setError("Payment failed. Please try again.");
+        setLoading(false);
+      });
       rzp.open();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Payment failed. Please try again.");
-      setStep("details");
+      setError(err instanceof Error ? err.message : "Something went wrong.");
       setLoading(false);
     }
   }
 
-  async function saveOrder(paymentId: string) {
+  async function finalise(paymentId: string) {
     const itemsList = cart.map((i) => `${i.name} ×${i.cart_qty}`).join(", ");
 
-    // Save to Supabase
+    // Save order to Supabase (best-effort)
     await fetch("/api/orders", {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customer_name: name.trim(),
-        customer_phone: phone.trim(),
+      body:    JSON.stringify({
+        customer_name:    name.trim(),
+        customer_phone:   phone.trim(),
         customer_address: address.trim(),
-        items: cart.map((item) => ({
-          product_id: item.id,
-          product_name: item.name,
-          price: item.price,
-          qty: item.cart_qty,
+        items: cart.map((i) => ({
+          product_id:   i.id,
+          product_name: i.name,
+          price:        i.price,
+          qty:          i.cart_qty,
         })),
         subtotal,
         discount,
         total,
         payment_method: "razorpay",
-        payment_id: paymentId,
-        status: "confirmed",
+        payment_id:     paymentId,
+        status:         "confirmed",
       }),
     });
 
-    // Send WhatsApp notification to store
+    // WhatsApp notification to store
     let msg = `🛒 *New Order — TSN Mart*\n\n👤 *${name.trim()}*\n📞 ${phone.trim()}\n📍 ${address.trim()}\n\n`;
-    cart.forEach((item) => {
-      msg += `• ${item.name} ×${item.cart_qty} = ₹${item.price * item.cart_qty}\n`;
-    });
-    msg += `\n🧾 Subtotal: ₹${subtotal}`;
-    if (discount > 0) msg += `\n🏷️ Discount (10%): −₹${discount}`;
-    msg += `\n💰 *Total: ₹${total}*`;
-    msg += `\n💳 Payment: Razorpay ✅ Paid\n🔖 ID: ${paymentId}`;
+    cart.forEach((i) => { msg += `• ${i.name} ×${i.cart_qty} = ₹${i.price * i.cart_qty}\n`; });
+    if (discount > 0) msg += `\n🏷️ Discount: −₹${discount}`;
+    msg += `\n💰 *Total: ₹${total}*\n💳 Razorpay ✅  ID: ${paymentId}`;
     window.open(`https://wa.me/918897162149?text=${encodeURIComponent(msg)}`, "_blank");
 
     clearCart();
     onComplete({ name: name.trim(), address: address.trim(), items: itemsList, total, paymentId });
   }
 
+  const inputCls = "w-full px-4 py-3 rounded-2xl text-sm text-slate-800 placeholder-slate-400 outline-none transition-colors";
+  const inputStyle = { background: "#f8fafc", border: "1.5px solid #e2e8f0" };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,.5)", backdropFilter: "blur(4px)" }}
+    >
       <div
-        className="bg-white rounded-2xl w-full max-w-md overflow-hidden"
-        style={{ boxShadow: "0 25px 60px rgba(0,0,0,.25)", maxHeight: "95vh" }}
+        className="bg-white w-full max-w-md rounded-3xl overflow-hidden"
+        style={{ boxShadow: "0 32px 80px rgba(0,0,0,.25)", maxHeight: "95vh" }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            {/* Step indicator */}
-            <div className="flex items-center gap-1.5">
-              <span
-                className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center"
-                style={{ background: "#1a3c34", color: "white" }}
-              >
-                1
-              </span>
-              <span className="text-xs font-medium text-slate-800">Details</span>
-              <span className="text-slate-300 mx-1">—</span>
-              <span
-                className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center"
-                style={{
-                  background: step === "paying" ? "#1a3c34" : "#e2e8f0",
-                  color: step === "paying" ? "white" : "#94a3b8",
-                }}
-              >
-                2
-              </span>
-              <span
-                className="text-xs font-medium"
-                style={{ color: step === "paying" ? "#1e293b" : "#94a3b8" }}
-              >
-                Payment
-              </span>
-            </div>
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #f1f5f9" }}>
+          <div>
+            <h2 className="text-base font-black text-slate-900">Confirm Order</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Fill details and pay securely</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+            style={{ background: "#f8fafc" }}
             aria-label="Close"
           >
             ✕
           </button>
         </div>
 
-        <div className="overflow-y-auto" style={{ maxHeight: "calc(95vh - 65px)" }}>
-          <div className="px-6 py-5 space-y-4">
-            {/* Order summary — compact */}
-            <div className="bg-slate-50 rounded-xl p-4 space-y-1.5">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                Order Summary
-              </p>
-              {cart.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm">
-                  <span className="text-slate-600 truncate mr-3">
-                    {item.name}
-                    <span className="text-slate-400 ml-1">×{item.cart_qty}</span>
-                  </span>
-                  <span className="font-medium text-slate-800 shrink-0">
-                    ₹{item.price * item.cart_qty}
-                  </span>
-                </div>
-              ))}
-              <div className="border-t border-slate-200 pt-2 mt-1 space-y-1">
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm text-green-600 font-medium">
-                    <span>Discount (10% off)</span>
-                    <span>−₹{discount}</span>
+        <div className="overflow-y-auto" style={{ maxHeight: "calc(95vh - 69px)" }}>
+          <div className="px-5 py-4 space-y-4">
+
+            {/* Order summary */}
+            <div>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Your Order</p>
+              <div className="rounded-2xl overflow-hidden" style={{ border: "1.5px solid #f1f5f9" }}>
+                {cart.map((item, i) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 px-4 py-2.5"
+                    style={{ borderTop: i > 0 ? "1px solid #f8fafc" : undefined }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.image} alt={item.name}
+                      className="w-9 h-9 object-contain rounded-xl shrink-0"
+                      style={{ background: "#f8fafc" }}
+                    />
+                    <span className="flex-1 text-sm font-semibold text-slate-700 truncate">
+                      {item.name}
+                    </span>
+                    <span className="text-xs text-slate-400 shrink-0">×{item.cart_qty}</span>
+                    <span className="text-sm font-black shrink-0" style={{ color: "#1a3c34" }}>
+                      ₹{item.price * item.cart_qty}
+                    </span>
                   </div>
-                )}
-                <div className="flex justify-between font-bold text-slate-800">
-                  <span>Total</span>
-                  <span className="text-[#1a3c34] text-base">₹{total}</span>
+                ))}
+                <div
+                  className="flex items-center justify-between px-4 py-3"
+                  style={{ borderTop: "1.5px dashed #e2e8f0", background: "#fafafa" }}
+                >
+                  {discount > 0 && (
+                    <span className="text-xs font-semibold" style={{ color: "#16a34a" }}>
+                      🏷️ −₹{discount} discount applied
+                    </span>
+                  )}
+                  <span className="ml-auto text-sm font-black text-slate-900">
+                    Total ₹{total}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Delivery details form */}
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                Delivery Details
-              </p>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => { setName(e.target.value); setError(""); }}
-                placeholder="Full Name *"
-                autoComplete="name"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#1a3c34] transition-colors"
-              />
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
-                placeholder="Phone Number (10 digits) *"
-                autoComplete="tel"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#1a3c34] transition-colors"
-              />
-              <textarea
-                value={address}
-                onChange={(e) => { setAddress(e.target.value); setError(""); }}
-                placeholder="Delivery Address — House No., Street, Area, City *"
-                rows={3}
-                autoComplete="street-address"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-[#1a3c34] transition-colors resize-none"
-              />
+            {/* Delivery details */}
+            <div>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Deliver To</p>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => { setName(e.target.value); setError(""); }}
+                  placeholder="Full Name *"
+                  autoComplete="name"
+                  className={inputCls}
+                  style={inputStyle}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "#1a3c34")}
+                  onBlur={(e)  => (e.currentTarget.style.borderColor = "#e2e8f0")}
+                />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
+                  placeholder="Phone Number (10 digits) *"
+                  autoComplete="tel"
+                  className={inputCls}
+                  style={inputStyle}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "#1a3c34")}
+                  onBlur={(e)  => (e.currentTarget.style.borderColor = "#e2e8f0")}
+                />
+                <textarea
+                  value={address}
+                  onChange={(e) => { setAddress(e.target.value); setError(""); }}
+                  placeholder="House / Flat No., Street, Landmark, City *"
+                  rows={3}
+                  autoComplete="street-address"
+                  className={inputCls + " resize-none"}
+                  style={inputStyle}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "#1a3c34")}
+                  onBlur={(e)  => (e.currentTarget.style.borderColor = "#e2e8f0")}
+                />
+              </div>
             </div>
 
+            {/* Error */}
             {error && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                <span className="text-red-500 text-sm">⚠</span>
-                <p className="text-red-600 text-sm font-medium">{error}</p>
+              <div
+                className="flex items-start gap-2 px-4 py-3 rounded-2xl text-sm"
+                style={{ background: "#fff1f2", border: "1px solid #fecdd3", color: "#be123c" }}
+              >
+                <span className="shrink-0 mt-0.5">⚠</span>
+                <span>{error}</span>
               </div>
             )}
 
             {/* Pay button */}
             <button
-              onClick={handleProceedToPayment}
+              onClick={handlePay}
               disabled={loading || cart.length === 0}
-              className="w-full text-white font-semibold py-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2 active:scale-[.98] disabled:opacity-60"
+              className="w-full text-white font-black py-4 rounded-2xl transition-all active:scale-[.98] disabled:opacity-60 flex items-center justify-center gap-3 text-sm"
               style={{ background: "#1a3c34" }}
             >
               {loading ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Opening Payment…
+                  <span>Opening Payment…</span>
                 </>
               ) : (
                 <>
-                  Pay ₹{total} securely
-                  <span className="text-base">→</span>
+                  <span>Pay ₹{total}</span>
+                  <span className="opacity-60">·</span>
+                  <span className="font-normal opacity-80 text-xs">Razorpay</span>
+                  <span>→</span>
                 </>
               )}
             </button>
 
-            {/* Trust badges */}
-            <div className="flex items-center justify-center gap-4 pt-1">
-              <span className="text-xs text-slate-400 flex items-center gap-1">
-                🔒 Secured by Razorpay
-              </span>
-              <span className="text-xs text-slate-400 flex items-center gap-1">
-                ✓ UPI · Cards · NetBanking
-              </span>
+            {/* Trust */}
+            <div className="flex items-center justify-center gap-3 pb-2">
+              <span className="text-xs text-slate-400">🔒 100% secure</span>
+              <span className="text-slate-200">|</span>
+              <span className="text-xs text-slate-400">UPI · Cards · Wallets</span>
+              <span className="text-slate-200">|</span>
+              <span className="text-xs text-slate-400">No data stored</span>
             </div>
           </div>
         </div>
@@ -285,7 +299,7 @@ export default function CheckoutModal({ onClose, onComplete }: Props) {
   );
 }
 
-// ── Types for Razorpay browser SDK ──────────────────────────
+/* ── Razorpay browser SDK types ── */
 interface RazorpayOptions {
   key: string;
   amount: number;
@@ -296,29 +310,26 @@ interface RazorpayOptions {
   prefill: { name: string; contact: string };
   theme: { color: string };
   modal: { ondismiss: () => void };
-  handler: (response: RazorpayResponse) => void;
+  handler: (r: RazorpayResponse) => void;
 }
-
 interface RazorpayResponse {
   razorpay_payment_id: string;
   razorpay_order_id: string;
   razorpay_signature: string;
 }
-
-interface WindowWithRazorpay {
-  Razorpay: new (options: RazorpayOptions) => { open: () => void };
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, cb: () => void) => void;
 }
+type WindowWithRazorpay = Window & { Razorpay: new (o: RazorpayOptions) => RazorpayInstance };
 
 function loadRazorpayScript(): Promise<void> {
   return new Promise((resolve, reject) => {
-    if ((window as unknown as WindowWithRazorpay).Razorpay) {
-      resolve();
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
-    document.body.appendChild(script);
+    if ((window as unknown as WindowWithRazorpay).Razorpay) { resolve(); return; }
+    const s   = document.createElement("script");
+    s.src     = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload  = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+    document.body.appendChild(s);
   });
 }

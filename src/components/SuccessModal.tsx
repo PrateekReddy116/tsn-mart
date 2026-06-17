@@ -13,68 +13,68 @@ interface Props {
 
 export default function SuccessModal({ order, onClose }: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,.5)", backdropFilter: "blur(4px)" }}
+    >
       <div
-        className="bg-white rounded-2xl w-full max-w-sm"
-        style={{ boxShadow: "0 25px 60px rgba(0,0,0,.25)" }}
+        className="bg-white w-full max-w-sm rounded-3xl overflow-hidden"
+        style={{ boxShadow: "0 32px 80px rgba(0,0,0,.25)" }}
       >
-        {/* Success icon */}
-        <div className="flex flex-col items-center pt-8 pb-4 px-6">
+        {/* Green top strip */}
+        <div
+          className="flex flex-col items-center py-8 px-6 text-white"
+          style={{ background: "linear-gradient(135deg, #14532d, #1a3c34)" }}
+        >
           <div
-            className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
-            style={{ background: "#1a3c34" }}
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
+            style={{ background: "rgba(255,255,255,.15)" }}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-9 h-9"
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}
+              strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8"
             >
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-1">Order Confirmed!</h2>
-          <p className="text-sm text-slate-400 text-center leading-relaxed">
-            Payment received. We&apos;ll deliver to your address shortly.
+          <h2 className="text-lg font-black mb-0.5">Order Confirmed! 🎉</h2>
+          <p className="text-sm text-white/70 text-center">
+            Payment received. We&apos;ll be in touch shortly.
           </p>
         </div>
 
         {/* Details */}
-        <div className="mx-6 mb-6 bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
-          <div className="flex justify-between gap-3">
-            <span className="text-slate-400 shrink-0">Name</span>
-            <span className="font-semibold text-slate-800 text-right">{order.name}</span>
+        <div className="px-5 py-4 space-y-2.5">
+          {[
+            { label: "Name",       value: order.name },
+            { label: "Address",    value: order.address },
+            { label: "Items",      value: order.items },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex justify-between gap-4 text-sm">
+              <span className="text-slate-400 shrink-0">{label}</span>
+              <span className="font-semibold text-slate-700 text-right">{value}</span>
+            </div>
+          ))}
+
+          <div
+            className="flex justify-between items-center pt-3"
+            style={{ borderTop: "1.5px dashed #e2e8f0" }}
+          >
+            <span className="text-sm font-black text-slate-900">Total Paid</span>
+            <span className="text-lg font-black" style={{ color: "#1a3c34" }}>₹{order.total}</span>
           </div>
-          <div className="flex justify-between gap-3">
-            <span className="text-slate-400 shrink-0">Address</span>
-            <span className="font-medium text-slate-700 text-right">{order.address}</span>
-          </div>
-          <div className="flex justify-between gap-3">
-            <span className="text-slate-400 shrink-0">Items</span>
-            <span className="font-medium text-slate-700 text-right">{order.items}</span>
-          </div>
-          <div className="flex justify-between gap-3 pt-2 border-t border-slate-200">
-            <span className="font-bold text-slate-800">Total Paid</span>
-            <span className="font-bold text-[#1a3c34] text-base">₹{order.total}</span>
-          </div>
-          <div className="flex justify-between gap-3">
-            <span className="text-slate-400 shrink-0">Payment ID</span>
-            <span className="font-mono text-xs text-slate-500 text-right break-all">
-              {order.paymentId}
-            </span>
-          </div>
+
+          <p className="text-[10px] text-slate-300 font-mono break-all pt-1">
+            Txn: {order.paymentId}
+          </p>
         </div>
 
-        <div className="px-6 pb-6">
+        <div className="px-5 pb-5">
           <button
             onClick={onClose}
-            className="w-full text-white font-semibold py-3.5 rounded-xl transition-all text-sm active:scale-[.98]"
+            className="w-full text-white font-black py-4 rounded-2xl text-sm transition-all active:scale-[.98]"
             style={{ background: "#1a3c34" }}
           >
-            Continue Shopping
+            Continue Shopping →
           </button>
         </div>
       </div>
