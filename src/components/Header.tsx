@@ -1,9 +1,19 @@
 "use client";
 
-import { Search, Menu, ShoppingCart, User } from "lucide-react";
+import { Search, Menu, ShoppingCart, User, X, Home, Bookmark, ReceiptText } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 import Link from "next/link";
+
+const navItems = [
+  { icon: Home, href: "/", label: "Home" },
+  { icon: Bookmark, href: "/saved", label: "Saved Items" },
+  { icon: ReceiptText, href: "/orders", label: "Past Orders" },
+  { icon: User, href: "/profile", label: "Profile" },
+];
 
 interface Props {
   search: string;
@@ -14,11 +24,18 @@ interface Props {
 }
 
 export default function Header({ search, onSearch, onCartToggle, user, profile }: Props) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
   return (
-    <header className="sticky top-0 z-40 bg-[var(--surface)] border-b border-[var(--border)] px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-4">
+    <>
+      <header className="sticky top-0 z-40 bg-[var(--surface)] border-b border-[var(--border)] px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-4">
       
       {/* Mobile Menu Button (Hamburger) - Only visible on small screens */}
-      <button className="md:hidden text-[var(--text2)] p-2 -ml-2 rounded-lg hover:bg-[var(--surface2)]">
+      <button 
+        onClick={() => setMobileMenuOpen(true)}
+        className="md:hidden text-[var(--text2)] p-2 -ml-2 rounded-lg hover:bg-[var(--surface2)]"
+      >
         <Menu size={24} />
       </button>
 
@@ -55,5 +72,62 @@ export default function Header({ search, onSearch, onCartToggle, user, profile }
         </Link>
       </div>
     </header>
+
+    {/* Mobile Navigation Drawer */}
+    {mobileMenuOpen && (
+      <div className="fixed inset-0 z-50 flex md:hidden">
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" 
+          onClick={() => setMobileMenuOpen(false)}
+        />
+        
+        {/* Drawer */}
+        <div className="relative w-64 max-w-sm bg-[var(--surface)] h-full flex flex-col shadow-2xl transition-transform transform translate-x-0">
+          <div className="flex items-center justify-between p-6 border-b border-[var(--border)]">
+            <div className="w-8 h-8 relative">
+              <Image src="/logo.png" alt="TSN Mart" fill className="object-contain" />
+            </div>
+            <button 
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-2 -mr-2 text-[var(--text2)] hover:bg-[var(--surface2)] rounded-full"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="p-6">
+            <p className="text-xs font-bold text-[var(--text3)] uppercase tracking-wider mb-4">Menu</p>
+            <nav className="flex flex-col gap-2">
+              {navItems.map((item, i) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={i}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-colors font-medium text-sm ${
+                      isActive 
+                        ? "bg-[var(--brand)] text-white" 
+                        : "text-[var(--text2)] hover:bg-[var(--surface2)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div className="mt-auto p-6 border-t border-[var(--border)] flex items-center justify-between">
+            <span className="text-sm font-semibold text-[var(--text2)]">Dark Mode</span>
+            <ThemeToggle />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
