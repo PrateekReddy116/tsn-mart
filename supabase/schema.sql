@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS customer_profiles (
   name        TEXT NOT NULL,
   phone       TEXT,
   address     TEXT,
+  role        TEXT NOT NULL DEFAULT 'customer',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
